@@ -1,37 +1,13 @@
-## Welcome to GitHub Pages
+# Analysis of Homomorphic Encryption in Resource Constrained Settings
 
-You can use the [editor on GitHub](https://github.com/daniel-achee/ece209-project/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+By Daniel Achee and Jennifer Quintana
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+## Abstract
 
-### Markdown
+This project explores the landscape of private, secure data analytics. If a user wants to analyze data produced by an IoT device without giving away that data to an untrusted third party, then they have several options. One is to perform the analysis locally, which may be impractical given the resource constraints of their IoT device. Another is they can encrypt the data with homomorphic encryption, send it to another more powerful device which can perform the analysis directly on the encrypted data, and receive the results. We will investigate what is the cost of privacy in settings where the more powerful device is still relatively constrained by comparing data analysis on unencrypted data as opposed to homomorphically encrypted data on a low-SWaP SoC. Additionally, if privacy is considered imperative, we may investigate how powerful a machine must be to perform data analysis on homomorphically encrypted data by comparing the performance of a low-SWaP SoC and a more conventional server.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+## Prior Literature
+- TO-DO
 
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/daniel-achee/ece209-project/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+## Timeline
+- TO-DO
