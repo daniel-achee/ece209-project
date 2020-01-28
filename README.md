@@ -12,4 +12,14 @@ This project explores the landscape of private, secure data analytics. If a user
 - Github Repo for CryptoNets, https://github.com/microsoft/CryptoNets
 
 ## Timeline
-- TO-DO
+- January 28th: Boards received from Amazon, initial firmware image compiled.
+- February 4th: Generate preliminary design (unencrypted data sample run, metric data baseline established).
+- February 18th: Midterm Presentation.
+- February 25th: Generate final design (contains both homomorphic encyrption analysis tools and plaintext tools). Obtain data on metrics for comparison (see next section)
+- March 4th: Results comparison, generate final report
+
+## Metrics for Comparison between Homomorphic Encyrption and PlainText Data Analysis
+- power consumption [W] during processing
+- time [s] to process a fixed set of data
+- FPGA utilization [PLEs] of the two builds
+- HPS (processor) utilization during analysis [CPU %]
