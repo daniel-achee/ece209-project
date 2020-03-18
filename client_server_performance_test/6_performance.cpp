@@ -2,380 +2,19 @@
 // Licensed under the MIT license.
 
 #include "examples.h"
+#include <sstream>
+#include <string>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
+#include <unistd.h>
+#include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h> 
+
 
 using namespace std;
 using namespace seal;
-
-void error(const char *msg)
-{
-    perror(msg);
-    exit(0);
-}
-
-std::string save_into_string(Ciphertext const& ciphertext) {
-    std::ostringstream s;
-    ciphertext.save(s);
-    return s.str();
-}
-
-void load_from_string(std::shared_ptr<SEALContext> context, Ciphertext & ciphertext, std::string str) {
-    std::istringstream s;
-    s.str(str);
-    ciphertext.load(context, s);
-}
-
-void bfv_performance_test(shared_ptr<SEALContext> context, int sockfd) {
-    chrono::high_resolution_clock::time_point time_start, time_end;
-
-    print_parameters(context);
-    cout << endl;
-
-    auto &parms = context->first_context_data()->parms();
-    auto &plain_modulus = parms.plain_modulus();
-    size_t poly_modulus_degree = parms.poly_modulus_degree();
-
-    cout << "Generating secret/public keys: ";
-    KeyGenerator keygen(context);
-    cout << "Done" << endl;
-
-    auto secret_key = keygen.secret_key();
-    auto public_key = keygen.public_key();
-
-    RelinKeys relin_keys;
-    GaloisKeys gal_keys;
-    chrono::microseconds time_diff;
-    if (context->using_keyswitching())
-    {
-        /*
-        Generate relinearization keys.
-        */
-        cout << "Generating relinearization keys: ";
-        time_start = chrono::high_resolution_clock::now();
-        relin_keys = keygen.relin_keys();
-        time_end = chrono::high_resolution_clock::now();
-        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
-
-        if (!context->key_context_data()->qualifiers().using_batching)
-        {
-            cout << "Given encryption parameters do not support batching." << endl;
-            return;
-        }
-
-        /*
-        Generate Galois keys. In larger examples the Galois keys can use a lot of
-        memory, which can be a problem in constrained systems. The user should
-        try some of the larger runs of the test and observe their effect on the
-        memory pool allocation size. The key generation can also take a long time,
-        as can be observed from the print-out.
-        */
-        cout << "Generating Galois keys: ";
-        time_start = chrono::high_resolution_clock::now();
-        gal_keys = keygen.galois_keys();
-        time_end = chrono::high_resolution_clock::now();
-        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
-    }
-
-    Encryptor encryptor(context, public_key);
-    Decryptor decryptor(context, secret_key);
-    Evaluator evaluator(context);
-    BatchEncoder batch_encoder(context);
-    IntegerEncoder encoder(context);
-
-    /*
-    These will hold the total times used by each operation.
-    */
-    chrono::microseconds time_batch_sum(0);
-    chrono::microseconds time_unbatch_sum(0);
-    chrono::microseconds time_encrypt_sum(0);
-    chrono::microseconds time_decrypt_sum(0);
-    chrono::microseconds time_add_sum(0);
-    chrono::microseconds time_multiply_sum(0);
-    chrono::microseconds time_multiply_plain_sum(0);
-    chrono::microseconds time_square_sum(0);
-    chrono::microseconds time_relinearize_sum(0);
-    chrono::microseconds time_rotate_rows_one_step_sum(0);
-    chrono::microseconds time_rotate_rows_random_sum(0);
-    chrono::microseconds time_rotate_columns_sum(0);
-
-    /*
-    How many times to run the test?
-    */
-    long long count = 10;
-
-    /*
-    Populate a vector of values to batch.
-    */
-    size_t slot_count = batch_encoder.slot_count();
-    vector<uint64_t> pod_vector;
-    random_device rd;
-    for (size_t i = 0; i < slot_count; i++)
-    {
-        pod_vector.push_back(rd() % plain_modulus.value());
-    }
-
-    cout << "Running tests ";
-    for (long long i = 0; i < count; i++)
-    {
-        /*
-        [Batching]
-        There is nothing unusual here. We batch our random plaintext matrix
-        into the polynomial. Note how the plaintext we create is of the exactly
-        right size so unnecessary reallocations are avoided.
-        */
-        Plaintext plain(parms.poly_modulus_degree(), 0);
-        time_start = chrono::high_resolution_clock::now();
-        batch_encoder.encode(pod_vector, plain);
-        time_end = chrono::high_resolution_clock::now();
-        time_batch_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        /*
-        [Unbatching]
-        We unbatch what we just batched.
-        */
-        vector<uint64_t> pod_vector2(slot_count);
-        time_start = chrono::high_resolution_clock::now();
-        batch_encoder.decode(plain, pod_vector2);
-        time_end = chrono::high_resolution_clock::now();
-        time_unbatch_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-        if (pod_vector2 != pod_vector)
-        {
-            throw runtime_error("Batch/unbatch failed. Something is wrong.");
-        }
-
-        /*
-        [Encryption]
-        We make sure our ciphertext is already allocated and large enough
-        to hold the encryption with these encryption parameters. We encrypt
-        our random batched matrix here.
-        */
-        Ciphertext encrypted(context);
-        time_start = chrono::high_resolution_clock::now();
-        encryptor.encrypt(plain, encrypted);
-        time_end = chrono::high_resolution_clock::now();
-        time_encrypt_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        /*
-        [Decryption]
-        We decrypt what we just encrypted.
-        */
-        Plaintext plain2(poly_modulus_degree, 0);
-        time_start = chrono::high_resolution_clock::now();
-        decryptor.decrypt(encrypted, plain2);
-        time_end = chrono::high_resolution_clock::now();
-        time_decrypt_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-        if (plain2 != plain)
-        {
-            throw runtime_error("Encrypt/decrypt failed. Something is wrong.");
-        }
-
-        /*
-        [Add]
-        We create two ciphertexts and perform a few additions with them.
-        */
-        Ciphertext encrypted1(context);
-        encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i)), encrypted1);
-        Ciphertext encrypted2(context);
-        encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i + 1)), encrypted2);
-        time_start = chrono::high_resolution_clock::now();
-        /*
-        evaluator.add_inplace(encrypted1, encrypted1);
-        evaluator.add_inplace(encrypted2, encrypted2);
-        evaluator.add_inplace(encrypted1, encrypted2);
-        */
-       string cipher1 = save_into_string(encrypted1);
-       string cipher2 = save_into_string(encrypted2);
-
-        char cipher1len[255];
-        char cipher2len[255];
-
-        bzero(cipher1len,256);
-        bzero(cipher2len,256);
-
-        sprintf(cipher1len,"%lu",cipher1.size());
-        sprintf(cipher2len,"%lu",cipher2.size());
-
-        int n = write(sockfd,cipher1len,strlen(cipher1len));
-        if (n < 0) 
-         error("ERROR writing to socket");
-
-        n = write(sockfd,cipher1.c_str(),cipher1.size());
-        if (n < 0) 
-         error("ERROR writing to socket");
-
-        n = write(sockfd,cipher2len,strlen(cipher2len));
-        if (n < 0) 
-         error("ERROR writing to socket");
-
-        n = write(sockfd,cipher2.c_str(),cipher2.size());
-        if (n < 0) 
-         error("ERROR writing to socket");
-        
-        char resultlen[255];
-        bzero(resultlen, 255);
-        n = read(sockfd,resultlen,255);
-        if (n < 0) 
-         error("ERROR reading from socket");
-        
-        char * encrypted_result_char = new char[atoi(resultlen) + 1];
-        bzero(encrypted_result_char, atoi(resultlen) + 1);
-
-        n = read(sockfd,encrypted_result_char,atoi(resultlen));
-        if (n < 0) 
-         error("ERROR reading from socket");
-        Ciphertext encrypted_result(context);
-        load_from_string(context, encrypted_result, encrypted_result_char);
-
-        Plaintext plain_result;
-        decryptor.decrypt(encrypted_result, plain_result);
-        time_end = chrono::high_resolution_clock::now();
-        time_add_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        cout << "    + Plaintext polynomial: " << plain_result.to_string() << endl;
-
-        /*
-        [Multiply]
-        We multiply two ciphertexts. Since the size of the result will be 3,
-        and will overwrite the first argument, we reserve first enough memory
-        to avoid reallocating during multiplication.
-        */
-        encrypted1.reserve(3);
-        time_start = chrono::high_resolution_clock::now();
-        evaluator.multiply_inplace(encrypted1, encrypted2);
-        time_end = chrono::high_resolution_clock::now();
-        time_multiply_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        /*
-        [Multiply Plain]
-        We multiply a ciphertext with a random plaintext. Recall that
-        multiply_plain does not change the size of the ciphertext so we use
-        encrypted2 here.
-        */
-        time_start = chrono::high_resolution_clock::now();
-        evaluator.multiply_plain_inplace(encrypted2, plain);
-        time_end = chrono::high_resolution_clock::now();
-        time_multiply_plain_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        /*
-        [Square]
-        We continue to use encrypted2. Now we square it; this should be
-        faster than generic homomorphic multiplication.
-        */
-        time_start = chrono::high_resolution_clock::now();
-        evaluator.square_inplace(encrypted2);
-        time_end = chrono::high_resolution_clock::now();
-        time_square_sum += chrono::duration_cast<
-            chrono::microseconds>(time_end - time_start);
-
-        if (context->using_keyswitching())
-        {
-            /*
-            [Relinearize]
-            Time to get back to encrypted1. We now relinearize it back
-            to size 2. Since the allocation is currently big enough to
-            contain a ciphertext of size 3, no costly reallocations are
-            needed in the process.
-            */
-            time_start = chrono::high_resolution_clock::now();
-            evaluator.relinearize_inplace(encrypted1, relin_keys);
-            time_end = chrono::high_resolution_clock::now();
-            time_relinearize_sum += chrono::duration_cast<
-                chrono::microseconds>(time_end - time_start);
-
-            /*
-            [Rotate Rows One Step]
-            We rotate matrix rows by one step left and measure the time.
-            */
-            time_start = chrono::high_resolution_clock::now();
-            evaluator.rotate_rows_inplace(encrypted, 1, gal_keys);
-            evaluator.rotate_rows_inplace(encrypted, -1, gal_keys);
-            time_end = chrono::high_resolution_clock::now();
-            time_rotate_rows_one_step_sum += chrono::duration_cast<
-                chrono::microseconds>(time_end - time_start);;
-
-            /*
-            [Rotate Rows Random]
-            We rotate matrix rows by a random number of steps. This is much more
-            expensive than rotating by just one step.
-            */
-            size_t row_size = batch_encoder.slot_count() / 2;
-            int random_rotation = static_cast<int>(rd() % row_size);
-            time_start = chrono::high_resolution_clock::now();
-            evaluator.rotate_rows_inplace(encrypted, random_rotation, gal_keys);
-            time_end = chrono::high_resolution_clock::now();
-            time_rotate_rows_random_sum += chrono::duration_cast<
-                chrono::microseconds>(time_end - time_start);
-
-            /*
-            [Rotate Columns]
-            Nothing surprising here.
-            */
-            time_start = chrono::high_resolution_clock::now();
-            evaluator.rotate_columns_inplace(encrypted, gal_keys);
-            time_end = chrono::high_resolution_clock::now();
-            time_rotate_columns_sum += chrono::duration_cast<
-                chrono::microseconds>(time_end - time_start);
-        }
-
-        /*
-        Print a dot to indicate progress.
-        */
-        cout << ".";
-        cout.flush();
-    }
-
-    cout << " Done" << endl << endl;
-    cout.flush();
-
-    auto avg_batch = time_batch_sum.count() / count;
-    auto avg_unbatch = time_unbatch_sum.count() / count;
-    auto avg_encrypt = time_encrypt_sum.count() / count;
-    auto avg_decrypt = time_decrypt_sum.count() / count;
-    auto avg_add = time_add_sum.count() / (3 * count);
-    auto avg_multiply = time_multiply_sum.count() / count;
-    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
-    auto avg_square = time_square_sum.count() / count;
-    auto avg_relinearize = time_relinearize_sum.count() / count;
-    auto avg_rotate_rows_one_step = time_rotate_rows_one_step_sum.count() / (2 * count);
-    auto avg_rotate_rows_random = time_rotate_rows_random_sum.count() / count;
-    auto avg_rotate_columns = time_rotate_columns_sum.count() / count;
-
-    cout << "Average batch: " << avg_batch << " microseconds" << endl;
-    cout << "Average unbatch: " << avg_unbatch << " microseconds" << endl;
-    cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
-    cout << "Average decrypt: " << avg_decrypt << " microseconds" << endl;
-    cout << "Average add: " << avg_add << " microseconds" << endl;
-    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
-    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
-    cout << "Average square: " << avg_square << " microseconds" << endl;
-    if (context->using_keyswitching())
-    {
-        cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
-        cout << "Average rotate rows one step: " << avg_rotate_rows_one_step <<
-            " microseconds" << endl;
-        cout << "Average rotate rows random: " << avg_rotate_rows_random <<
-            " microseconds" << endl;
-        cout << "Average rotate columns: " << avg_rotate_columns <<
-            " microseconds" << endl;
-    }
-    cout.flush();
-}
 
 void bfv_performance_test(shared_ptr<SEALContext> context)
 {
@@ -394,6 +33,8 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
 
     auto secret_key = keygen.secret_key();
     auto public_key = keygen.public_key();
+    Ciphertext encrypted1(context);
+    Ciphertext encrypted2(context);
 
     RelinKeys relin_keys;
     GaloisKeys gal_keys;
@@ -403,6 +44,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         /*
         Generate relinearization keys.
         */
+
         cout << "Generating relinearization keys: ";
         time_start = chrono::high_resolution_clock::now();
         relin_keys = keygen.relin_keys();
@@ -423,6 +65,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         memory pool allocation size. The key generation can also take a long time,
         as can be observed from the print-out.
         */
+
         cout << "Generating Galois keys: ";
         time_start = chrono::high_resolution_clock::now();
         gal_keys = keygen.galois_keys();
@@ -430,6 +73,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
         cout << "Done [" << time_diff.count() << " microseconds]" << endl;
     }
+
 
     Encryptor encryptor(context, public_key);
     Decryptor decryptor(context, secret_key);
@@ -456,11 +100,12 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
     /*
     How many times to run the test?
     */
-    long long count = 10;
+   long long count = 10;
 
     /*
     Populate a vector of values to batch.
     */
+
     size_t slot_count = batch_encoder.slot_count();
     vector<uint64_t> pod_vector;
     random_device rd;
@@ -478,17 +123,19 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         into the polynomial. Note how the plaintext we create is of the exactly
         right size so unnecessary reallocations are avoided.
         */
+       
         Plaintext plain(parms.poly_modulus_degree(), 0);
         time_start = chrono::high_resolution_clock::now();
         batch_encoder.encode(pod_vector, plain);
         time_end = chrono::high_resolution_clock::now();
         time_batch_sum += chrono::duration_cast<
             chrono::microseconds>(time_end - time_start);
-
+        
         /*
         [Unbatching]
         We unbatch what we just batched.
         */
+       
         vector<uint64_t> pod_vector2(slot_count);
         time_start = chrono::high_resolution_clock::now();
         batch_encoder.decode(plain, pod_vector2);
@@ -499,6 +146,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         {
             throw runtime_error("Batch/unbatch failed. Something is wrong.");
         }
+    
 
         /*
         [Encryption]
@@ -506,17 +154,19 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         to hold the encryption with these encryption parameters. We encrypt
         our random batched matrix here.
         */
+       
         Ciphertext encrypted(context);
         time_start = chrono::high_resolution_clock::now();
         encryptor.encrypt(plain, encrypted);
         time_end = chrono::high_resolution_clock::now();
         time_encrypt_sum += chrono::duration_cast<
             chrono::microseconds>(time_end - time_start);
-
+        
         /*
         [Decryption]
         We decrypt what we just encrypted.
         */
+       
         Plaintext plain2(poly_modulus_degree, 0);
         time_start = chrono::high_resolution_clock::now();
         decryptor.decrypt(encrypted, plain2);
@@ -527,29 +177,32 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         {
             throw runtime_error("Encrypt/decrypt failed. Something is wrong.");
         }
-
+    
         /*
         [Add]
         We create two ciphertexts and perform a few additions with them.
         */
+       
         Ciphertext encrypted1(context);
         encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i)), encrypted1);
         Ciphertext encrypted2(context);
         encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i + 1)), encrypted2);
         time_start = chrono::high_resolution_clock::now();
+        
         evaluator.add_inplace(encrypted1, encrypted1);
         evaluator.add_inplace(encrypted2, encrypted2);
         evaluator.add_inplace(encrypted1, encrypted2);
         time_end = chrono::high_resolution_clock::now();
         time_add_sum += chrono::duration_cast<
             chrono::microseconds>(time_end - time_start);
-
+        
         /*
         [Multiply]
         We multiply two ciphertexts. Since the size of the result will be 3,
         and will overwrite the first argument, we reserve first enough memory
         to avoid reallocating during multiplication.
         */
+       
         encrypted1.reserve(3);
         time_start = chrono::high_resolution_clock::now();
         evaluator.multiply_inplace(encrypted1, encrypted2);
@@ -563,6 +216,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         multiply_plain does not change the size of the ciphertext so we use
         encrypted2 here.
         */
+       
         time_start = chrono::high_resolution_clock::now();
         evaluator.multiply_plain_inplace(encrypted2, plain);
         time_end = chrono::high_resolution_clock::now();
@@ -574,14 +228,17 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         We continue to use encrypted2. Now we square it; this should be
         faster than generic homomorphic multiplication.
         */
+       
         time_start = chrono::high_resolution_clock::now();
         evaluator.square_inplace(encrypted2);
         time_end = chrono::high_resolution_clock::now();
         time_square_sum += chrono::duration_cast<
             chrono::microseconds>(time_end - time_start);
+            
 
         if (context->using_keyswitching())
         {
+
             /*
             [Relinearize]
             Time to get back to encrypted1. We now relinearize it back
@@ -589,6 +246,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
             contain a ciphertext of size 3, no costly reallocations are
             needed in the process.
             */
+           
             time_start = chrono::high_resolution_clock::now();
             evaluator.relinearize_inplace(encrypted1, relin_keys);
             time_end = chrono::high_resolution_clock::now();
@@ -599,6 +257,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
             [Rotate Rows One Step]
             We rotate matrix rows by one step left and measure the time.
             */
+           
             time_start = chrono::high_resolution_clock::now();
             evaluator.rotate_rows_inplace(encrypted, 1, gal_keys);
             evaluator.rotate_rows_inplace(encrypted, -1, gal_keys);
@@ -611,6 +270,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
             We rotate matrix rows by a random number of steps. This is much more
             expensive than rotating by just one step.
             */
+           
             size_t row_size = batch_encoder.slot_count() / 2;
             int random_rotation = static_cast<int>(rd() % row_size);
             time_start = chrono::high_resolution_clock::now();
@@ -623,6 +283,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
             [Rotate Columns]
             Nothing surprising here.
             */
+           
             time_start = chrono::high_resolution_clock::now();
             evaluator.rotate_columns_inplace(encrypted, gal_keys);
             time_end = chrono::high_resolution_clock::now();
@@ -661,6 +322,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
     cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
     cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
     cout << "Average square: " << avg_square << " microseconds" << endl;
+    
     if (context->using_keyswitching())
     {
         cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
@@ -671,6 +333,7 @@ void bfv_performance_test(shared_ptr<SEALContext> context)
         cout << "Average rotate columns: " << avg_rotate_columns <<
             " microseconds" << endl;
     }
+    
     cout.flush();
 }
 
@@ -941,40 +604,307 @@ void ckks_performance_test(shared_ptr<SEALContext> context)
     cout.flush();
 }
 
-void example_bfv_performance_default(int sockfd)
+void client_bfv_performance_test(shared_ptr<SEALContext> context, int argc, char *argv[]) {
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    
+    int sockfd;
+    create_client_socket(sockfd, argc, argv);
+
+    print_parameters(context);
+    cout << endl;
+
+    auto &parms = context->first_context_data()->parms();
+    auto &plain_modulus = parms.plain_modulus();
+    size_t poly_modulus_degree = parms.poly_modulus_degree();
+
+    cout << "Generating secret/public keys: ";
+    KeyGenerator keygen(context);
+    cout << "Done" << endl;
+
+    auto secret_key = keygen.secret_key();
+    auto public_key = keygen.public_key();
+
+    Encryptor encryptor(context, public_key);
+    Decryptor decryptor(context, secret_key);
+    Evaluator evaluator(context);
+    BatchEncoder batch_encoder(context);
+    IntegerEncoder encoder(context);
+
+    /*
+    These will hold the total times used by each operation.
+    */
+    chrono::microseconds time_add_sum(0);
+    chrono::microseconds time_multiply_sum(0);
+    chrono::microseconds time_multiply_plain_sum(0);
+    chrono::microseconds time_square_sum(0);
+
+    /*
+    How many times to run the test?
+    */
+    long long count = 10;
+
+    Plaintext plain(parms.poly_modulus_degree(), 0);
+    size_t slot_count = batch_encoder.slot_count();
+    vector<uint64_t> pod_vector;
+    random_device rd;
+    for (size_t i = 0; i < slot_count; i++)
+    {
+        pod_vector.push_back(rd() % plain_modulus.value());
+    }
+    batch_encoder.encode(pod_vector, plain);
+
+    cout << "Running tests ";
+    for (long long i = 0; i < count; i++)
+    {
+        /*
+        [Add]
+        We create two ciphertexts and perform a few additions with them.
+        */
+        Ciphertext encrypted1(context);
+        encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i)), encrypted1);
+        Ciphertext encrypted2(context);
+        encryptor.encrypt(encoder.encode(static_cast<uint64_t>(i + 1)), encrypted2);
+        time_start = chrono::high_resolution_clock::now();
+
+        send_seal_object(sockfd, encrypted1);
+        send_seal_object(sockfd, encrypted2);
+        recv_seal_object(sockfd, context, encrypted1);
+
+        Plaintext plain_result;
+        decryptor.decrypt(encrypted1, plain_result);
+        time_end = chrono::high_resolution_clock::now();
+        time_add_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+
+        cout << "    + Plaintext polynomial: " << plain_result.to_string() << endl;
+
+        /*
+        [Multiply]
+        We multiply two ciphertexts. Since the size of the result will be 3,
+        and will overwrite the first argument, we reserve first enough memory
+        to avoid reallocating during multiplication.
+        */
+        encrypted1.reserve(3);
+        time_start = chrono::high_resolution_clock::now();
+        send_seal_object(sockfd, encrypted1);
+        send_seal_object(sockfd, encrypted2);
+        recv_seal_object(sockfd, context, encrypted1);
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Multiply Plain]
+        We multiply a ciphertext with a random plaintext. Recall that
+        multiply_plain does not change the size of the ciphertext so we use
+        encrypted2 here.
+        */
+        time_start = chrono::high_resolution_clock::now();
+        send_seal_object(sockfd, encrypted2);
+        send_seal_object(sockfd, plain);
+        recv_seal_object(sockfd, context, encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_plain_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Square]
+        We continue to use encrypted2. Now we square it; this should be
+        faster than generic homomorphic multiplication.
+        */
+        time_start = chrono::high_resolution_clock::now();
+        send_seal_object(sockfd, encrypted2);
+        recv_seal_object(sockfd, context, encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_square_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+
+        /*
+        Print a dot to indicate progress.
+        */
+        cout << ".";
+        cout.flush();
+    }
+
+    cout << " Done" << endl << endl;
+    cout.flush();
+
+    auto avg_add = time_add_sum.count() / (3 * count);
+    auto avg_multiply = time_multiply_sum.count() / count;
+    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
+    auto avg_square = time_square_sum.count() / count;
+
+    cout << "Average add: " << avg_add << " microseconds" << endl;
+    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
+    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
+    cout << "Average square: " << avg_square << " microseconds" << endl;
+
+    cout.flush();
+    close_client_socket(sockfd);
+}
+
+void server_bfv_performance_test(shared_ptr<SEALContext> context, int argc, char *argv[])
 {
-    print_example_banner("BFV Performance Test with Degrees: 4096, 8192, and 16384");
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    int sockfd, newsockfd;
+    create_server_socket(sockfd, newsockfd, argc, argv);
+    print_parameters(context);
+    cout << endl;
+
+    auto &parms = context->first_context_data()->parms();
+    auto &plain_modulus = parms.plain_modulus();
+    size_t poly_modulus_degree = parms.poly_modulus_degree();
+
+    Evaluator evaluator(context);
+
+    /*
+    These will hold the total times used by each operation.
+    */
+    chrono::microseconds time_add_sum(0);
+    chrono::microseconds time_multiply_sum(0);
+    chrono::microseconds time_multiply_plain_sum(0);
+    chrono::microseconds time_square_sum(0);
+
+    /*
+    How many times to run the test?
+    */
+   long long count = 10;
+
+    cout << "Running tests ";
+    for (long long i = 0; i < count; i++)
+    {
+        /*
+        [Add]
+        We create two ciphertexts and perform a few additions with them.
+        */  
+        Ciphertext encrypted1(context);
+        Ciphertext encrypted2(context);
+        time_start = chrono::high_resolution_clock::now();
+
+        recv_seal_object(newsockfd, context, encrypted1);
+        recv_seal_object(newsockfd, context, encrypted2);
+
+        evaluator.add_inplace(encrypted1, encrypted1);
+        evaluator.add_inplace(encrypted2, encrypted2);
+        evaluator.add_inplace(encrypted1, encrypted2);
+
+        send_seal_object(newsockfd, encrypted1);
+
+        time_end = chrono::high_resolution_clock::now();
+        time_add_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+        
+        /*
+        [Multiply]
+        We multiply two ciphertexts. Since the size of the result will be 3,
+        and will overwrite the first argument, we reserve first enough memory
+        to avoid reallocating during multiplication.
+        */
+
+        encrypted1.reserve(3);
+        time_start = chrono::high_resolution_clock::now();
+
+        recv_seal_object(newsockfd, context, encrypted1);
+        recv_seal_object(newsockfd, context, encrypted2);
+
+        evaluator.multiply_inplace(encrypted1, encrypted2);
+
+        send_seal_object(newsockfd, encrypted1);
+
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Multiply Plain]
+        We multiply a ciphertext with a random plaintext. Recall that
+        multiply_plain does not change the size of the ciphertext so we use
+        encrypted2 here.
+        */
+        Plaintext plain(parms.poly_modulus_degree(), 0);
+        time_start = chrono::high_resolution_clock::now();
+        
+        recv_seal_object(newsockfd, context, encrypted2);
+        recv_seal_object(newsockfd, context, plain);
+
+        evaluator.multiply_plain_inplace(encrypted2, plain);
+        send_seal_object(newsockfd, encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_plain_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+        /*
+        [Square]
+        We continue to use encrypted2. Now we square it; this should be
+        faster than generic homomorphic multiplication.
+        */
+       
+        time_start = chrono::high_resolution_clock::now();
+        
+        recv_seal_object(newsockfd, context, encrypted2);
+
+        evaluator.square_inplace(encrypted2);
+
+        send_seal_object(newsockfd, encrypted2);
+
+        time_end = chrono::high_resolution_clock::now();
+        time_square_sum += chrono::duration_cast<
+            chrono::microseconds>(time_end - time_start);
+            
+        /*
+        Print a dot to indicate progress.
+        */
+        cout << ".";
+        cout.flush();
+    }
+
+    cout << " Done" << endl << endl;
+    cout.flush();
+
+    auto avg_add = time_add_sum.count() / (3 * count);
+    auto avg_multiply = time_multiply_sum.count() / count;
+    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
+    auto avg_square = time_square_sum.count() / count;
+
+    cout << "Average add: " << avg_add << " microseconds" << endl;
+    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
+    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
+    cout << "Average square: " << avg_square << " microseconds" << endl;
+
+    cout.flush();
+    close_server_socket(sockfd, newsockfd);
+}
+
+void example_bfv_performance_default()
+{
+    print_example_banner("BFV Performance Test with Degrees: 4096, 8192, 16384, and 32768");
 
     EncryptionParameters parms(scheme_type::BFV);
     size_t poly_modulus_degree = 4096;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     parms.set_plain_modulus(786433);
-    bfv_performance_test(SEALContext::Create(parms), sockfd);
+    bfv_performance_test(SEALContext::Create(parms));
 
     cout << endl;
     poly_modulus_degree = 8192;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     parms.set_plain_modulus(786433);
-    bfv_performance_test(SEALContext::Create(parms), sockfd);
+    bfv_performance_test(SEALContext::Create(parms));
 
     cout << endl;
     poly_modulus_degree = 16384;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     parms.set_plain_modulus(786433);
-    bfv_performance_test(SEALContext::Create(parms), sockfd);
+    bfv_performance_test(SEALContext::Create(parms));
 
-    /*
-    Comment out the following to run the biggest example.
-    */
-    // cout << endl;
-    // poly_modulus_degree = 32768;
-    // parms.set_poly_modulus_degree(poly_modulus_degree);
-    // parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    // parms.set_plain_modulus(786433);
-    // bfv_performance_test(SEALContext::Create(parms));
+    cout << endl;
+    poly_modulus_degree = 32768;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    bfv_performance_test(SEALContext::Create(parms));
 }
 
 void example_bfv_performance_custom()
@@ -1014,7 +944,7 @@ void example_bfv_performance_custom()
 
 void example_ckks_performance_default()
 {
-    print_example_banner("CKKS Performance Test with Degrees: 4096, 8192, and 16384");
+    print_example_banner("CKKS Performance Test with Degrees: 4096, 8192, 16384, and 32768");
 
     // It is not recommended to use BFVDefault primes in CKKS. However, for performance
     // test, BFVDefault primes are good enough.
@@ -1036,14 +966,11 @@ void example_ckks_performance_default()
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     ckks_performance_test(SEALContext::Create(parms));
 
-    /*
-    Comment out the following to run the biggest example.
-    */
-    // cout << endl;
-    // poly_modulus_degree = 32768;
-    // parms.set_poly_modulus_degree(poly_modulus_degree);
-    // parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    // ckks_performance_test(SEALContext::Create(parms));
+    cout << endl;
+    poly_modulus_degree = 32768;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    ckks_performance_test(SEALContext::Create(parms));
 }
 
 void example_ckks_performance_custom()
@@ -1073,14 +1000,82 @@ void example_ckks_performance_custom()
     ckks_performance_test(SEALContext::Create(parms));
 }
 
+void example_client_bfv_performance_default(int argc, char *argv[])
+{
+    print_example_banner("Client BFV Performance Test with Degrees: 4096, 8192, 16384, and 32768");
+
+    EncryptionParameters parms(scheme_type::BFV);
+    size_t poly_modulus_degree = 4096;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    client_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 8192;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    client_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 16384;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    client_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 32768;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    client_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+}
+
+void example_server_bfv_performance_default(int argc, char *argv[])
+{
+    
+    print_example_banner("Server BFV Performance Test with Degrees: 4096, 8192, 16384, and 32768");
+
+    EncryptionParameters parms(scheme_type::BFV);
+    size_t poly_modulus_degree = 4096;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    server_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 8192;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    server_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 16384;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    server_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+
+    cout << endl;
+    poly_modulus_degree = 32768;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    parms.set_plain_modulus(786433);
+    server_bfv_performance_test(SEALContext::Create(parms), argc, argv);
+}
+
 /*
 Prints a sub-menu to select the performance test.
 */
-void example_performance_test(int sockfd)
+void example_performance_test(int argc, char *argv[])
 {
+    //example_bfv_performance_default(sockfd);
+
     print_example_banner("Example: Performance Test");
-    example_bfv_performance_default(sockfd);
-/*
+
     while (true)
     {
         cout << endl;
@@ -1089,10 +1084,12 @@ void example_performance_test(int sockfd)
         cout << "  2. BFV with a custom degree" << endl;
         cout << "  3. CKKS with default degrees" << endl;
         cout << "  4. CKKS with a custom degree" << endl;
+        cout << "  5. Client BFV with default degrees" << endl;
+        cout << "  6. Server BFV with default degrees" << endl;
         cout << "  0. Back to main menu" << endl;
 
         int selection = 0;
-        cout << endl << "> Run performance test (1 ~ 4) or go back (0): ";
+        cout << endl << "> Run performance test (1 ~ 6) or go back (0): ";
         if (!(cin >> selection))
         {
             cout << "Invalid option." << endl;
@@ -1118,6 +1115,14 @@ void example_performance_test(int sockfd)
         case 4:
             example_ckks_performance_custom();
             break;
+        
+        case 5:
+            example_client_bfv_performance_default(argc, argv);
+            break;
+        
+        case 6:
+            example_server_bfv_performance_default(argc, argv);
+            break;
 
         case 0:
             cout << endl;
@@ -1127,5 +1132,4 @@ void example_performance_test(int sockfd)
             cout << "Invalid option." << endl;
         }
     }
-*/
 }

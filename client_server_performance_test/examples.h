@@ -17,6 +17,11 @@
 #include <limits>
 #include <algorithm>
 #include <numeric>
+#include <sys/socket.h>
+#include <sys/types.h> 
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <unistd.h>
 #include "seal/seal.h"
 
 void example_bfv_basics();
@@ -29,7 +34,163 @@ void example_ckks_basics();
 
 void example_rotation();
 
-void example_performance_test(int sockfd);
+void example_performance_test(int argc, char *argv[]);
+
+inline void error(const char *msg)
+{
+    perror(msg);
+    exit(1);
+}
+
+inline void create_client_socket(int & sockfd, int argc, char *argv[]) {
+    int portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    char buffer[256];
+    if (argc < 3) {
+       fprintf(stderr,"Usage %s hostname port\n", argv[0]);
+       exit(0);
+    }
+    portno = atoi(argv[2]);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    server = gethostbyname(argv[1]);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
+
+}
+
+inline void create_server_socket(int & sockfd, int & newsockfd, int argc, char *argv[]) {
+    socklen_t clilen;
+    char buffer[256];
+    struct sockaddr_in serv_addr, cli_addr;
+    int n;
+    if (argc < 2) {
+        fprintf(stderr,"ERROR, no port provided\n");
+        exit(1);
+    }
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    int enable = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+        error("setsockopt(SO_REUSEADDR) failed");
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    int portno = atoi(argv[1]);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (::bind(sockfd, (struct sockaddr *) &serv_addr,
+              sizeof(serv_addr)) < 0) 
+              error("ERROR on binding");
+    listen(sockfd,5);
+    clilen = sizeof(cli_addr);
+    newsockfd = accept(sockfd, 
+                 (struct sockaddr *) &cli_addr, 
+                 &clilen);
+    if (newsockfd < 0) 
+        error("ERROR on accept");
+}
+
+inline void close_client_socket(int sockfd) {
+    close(sockfd);
+}
+
+inline void close_server_socket(int sockfd, int newsockfd) {
+    int n;
+    n = close(newsockfd);
+    if (n < 0)
+        error("ERROR closing socket");
+    n = close(sockfd);
+    if (n < 0)
+        error("ERROR closing socket");
+}
+
+template <class SEALObj>
+inline void load_from_cstring(std::shared_ptr<seal::SEALContext> context, SEALObj & obj, char * cstr, int cstrlen) {
+    std::string str(cstr, cstrlen);
+    std::istringstream s;
+    s.str(str);
+    obj.load(context, s);
+}
+
+template <class SEALObj>
+inline std::string save_into_string(SEALObj const& obj) {
+    std::ostringstream s;
+    obj.save(s);
+    return s.str();
+}
+
+template <class SEALObj>
+inline void recv_seal_object(int sockfd, std::shared_ptr<seal::SEALContext> context, SEALObj & obj) {
+    char buf[255];
+    bzero(buf, 255);
+    size_t num_read = 0;
+    int n;
+    while (num_read < sizeof(size_t)) {
+        n = read(sockfd,buf + num_read,sizeof(size_t) - num_read);
+        if (n < 0) error("ERROR reading from socket");
+        num_read += n;
+    }
+
+    char * objStr= new char[atoi(buf)];
+    bzero(objStr, atoi(buf));
+
+    num_read = 0;
+    while(num_read < atoi(buf))
+    {
+        n = read(sockfd, objStr + num_read,atoi(buf) - num_read);
+        if (n < 0) error("ERROR reading from socket");
+        num_read += n;
+    }
+    
+    load_from_cstring(context, obj, objStr, atoi(buf));
+    delete [] objStr;
+}
+
+template <class SEALObj>
+inline void send_seal_object(int sockfd, SEALObj & obj) {
+    std::string objStr = save_into_string(obj);
+    char objStrLen[255];
+    bzero(objStrLen,256);
+
+    sprintf(objStrLen,"%lu",objStr.size());
+
+    size_t num_wrote = 0;
+    int n;
+    while (num_wrote < strlen(objStrLen)) {
+        n = write(sockfd,objStrLen + num_wrote,strlen(objStrLen) - num_wrote);
+        if (n < 0) 
+            error("ERROR writing to socket");
+        num_wrote += n;
+    }
+    while (num_wrote < sizeof(size_t)) {
+        char nullchar[1];
+        nullchar[0] = '\0';
+        n = write(sockfd, nullchar, 1);
+        num_wrote += n;
+    }
+
+    num_wrote = 0;
+    while (num_wrote < objStr.size()) {
+        n = write(sockfd,objStr.c_str() + num_wrote,objStr.size() - num_wrote);
+        if (n < 0) 
+            error("ERROR writing to socket");
+        num_wrote += n;
+    }
+}
 
 /*
 Helper function: Prints the name of the example in a fancy banner.
