@@ -39,11 +39,11 @@ Let seal_location be the location of the SEAL library on your system
 8. cd ../bin
 
 ### Running the Server Performance Test
-It is important to always start the server before the client or else the client will report "Error connection refused"
+It is important to always start the server before the client or else the client will report "Error connection refused".
 
 $ ./sealexamples [portnumber]
 
-where portnumber is the port that you want to the server to use
+where portnumber is the port that you want to the server to use.
 
 Then select option 6 from both the first and second menu. It will hang until you start the client test.
 
@@ -52,6 +52,7 @@ Then select option 6 from both the first and second menu. It will hang until you
 $ ./sealexamples [hostname] [portnumber]
 
 where hostname is the ip address or dns name of the server and server is the port used by the server
+
 Currently the implementation only works when both the client and server are run using the same host. Therfore please specify localhost as the hostname.
 Then select option 6 from the first menu and option five from the second menu.
 
