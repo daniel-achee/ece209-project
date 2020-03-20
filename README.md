@@ -54,7 +54,7 @@ $ ./sealexamples [hostname] [portnumber]
 where hostname is the ip address or dns name of the server and server is the port used by the server
 
 Currently the implementation only works when both the client and server are run using the same host. Therfore please specify localhost as the hostname.
-Then select option 6 from the first menu and option five from the second menu.
+Then select option 6 from the first menu and option 5 from the second menu.
 
 ### Running Other Performance Tests
 
