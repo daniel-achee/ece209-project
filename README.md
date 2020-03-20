@@ -36,7 +36,7 @@ Let seal_location be the location of the SEAL library on your system
 5. $ cp examples.cpp seal_location/native/examples
 6. $ cd seal_location/native/examples
 7. $ make
-8. cd ../bin
+8. $ cd ../bin
 
 ### Running the Server Performance Test
 It is important to always start the server before the client or else the client will report "Error connection refused".
