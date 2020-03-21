@@ -108,6 +108,8 @@ The team had some experience with low-SWaP devices for space applications and wa
 feasibility of homomorphic implementation in as small a platform as we could reasonably accomplish.
 We investigated a series of embedded devices, listed in Table 1.
 
+![Table 1](resources/Table1.PNG)
+
 _Table 1 : Devices examined for implementation of homomorphic encryption scheme._
 
 ```
@@ -126,6 +128,8 @@ on the order of $10,000.
 
 For the Amazon Webservices Elastic Cloud Computing goal, we implemented the SEAL libraries on the
 following instances, describe in Table 2.
+
+![Table 2](resources/Table2.PNG)
 
 _Table 2 : AWS EC2 Instances used for implementation of homomorphic encryption scheme._
 
@@ -157,6 +161,7 @@ single platform instance. The implementation and results are discussed in the ne
 
 After examining potential low SWaP platforms, we first selected the DE10 Nano SoC, a development kit
 with a hybrid ARM processor and FPGA Cyclone V chip, manufactured by Intel, shown in Figure 1.
+
 ![Intel DE10 Nano SoC](resources/Figure1.png)
 
 *Figure 1 : Intel DE10 Nano SoC, dual-core Cortex A9, 32 - bit ARM processor, Cylcone V FPGA with 110,000 Programmable Logic
@@ -259,9 +264,12 @@ milliseconds for each function instrumented is shown as a function of polynomial
 3 for the BFV encryption scheme implementation and in Table 4 for the CKKS encryption scheme
 implementation.
 
+![Table 3](resources/Table3.PNG)
+
 _Table 3 : Computation time [ms] of instrumented homomorphic encryption functions for BFV encryption schemes provided by the
 SEAL library, computed using the Raspberry Pi 4._
 
+![Table 4](resources/Table4.PNG)
 
 _Table 4 : Computation time [ms] of instrumented homomorphic encryption functions for CKKS encryption schemes provided by
 the SEAL library, computed using the Raspberry Pi 4._
@@ -290,23 +298,32 @@ The AWS EC2 instances (t2_micro, c5n_large, r5a_large) have similar performance 
 another for both BFV and CKKS scheme implementations. A table of average computation results for all
 three instances with both BFV and CKKS implementations are shown in Table 5 through Table 10.
 
+![Table 5](resources/Table5.PNG)
 
 _Table 5 : Computation time [ms] of instrumented homomorphic encryption functions for BFV encryption schemes provided by the
 SEAL library, computed using the t2_micro AWS EC2 instance._
 
+![Table 6](resources/Table6.PNG)
+
 _Table 6 : Computation time [ms] of instrumented homomorphic encryption functions for CKKS encryption schemes provided by
 the SEAL library, computed using the t2_micro AWS EC2 instance._
 
+![Table 7](resources/Table7.PNG)
 
 _Table 7 : Computation time [ms] of instrumented homomorphic encryption functions for BFV encryption schemes provided by the
 SEAL library, computed using the c5n_large AWS EC2 instance._
 
+![Table 8](resources/Table8.PNG)
+
 _Table 8 : Computation time [ms] of instrumented homomorphic encryption functions for CKKS encryption schemes provided by
 the SEAL library, computed using the c5n_large AWS EC2 instance._
 
+![Table 9](resources/Table9.PNG)
 
 _Table 9 : Computation time [ms] of instrumented homomorphic encryption functions for BFV encryption schemes provided by the
 SEAL library, computed using the r5a_large AWS EC2 instance._
+
+![Table 10](resources/Table10.PNG)
 
 _Table 10 : Computation time [ms] of instrumented homomorphic encryption functions for CKKS encryption schemes provided by
 the SEAL library, computed using the r5a_large AWS EC2 instance._
