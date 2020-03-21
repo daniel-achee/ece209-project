@@ -1,0 +1,1076 @@
+=~=~=~=~=~=~=~=~=~=~=~= PuTTY log 2020.03.18 21:45:00 =~=~=~=~=~=~=~=~=~=~=~=
+login as: pi
+pi@192.168.0.5's password: 
+Linux raspberrypi 4.19.97-v7l+ #1294 SMP Thu Jan 30 13:21:14 GMT 2020 armv7l
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Thu Mar 19 03:02:47 2020 from 192.168.0.1
+
+SSH is enabled and the default password for the 'pi' user has not been changed.
+This is a security risk - please login as the 'pi' user and type 'passwd' to set a new password.
+
+pi@raspberrypi:~$ cd / SEAL/native/bin/ex  se  
+pi@raspberrypi:~/SEAL/native/bin$ ls
+sealexamples
+pi@raspberrypi:~/SEAL/native/bin$ ,/  ./ses alexamples 
+Microsoft SEAL version: 3.4.5
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[      0 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 1
+
++-------------------------------------+
+|         Example: BFV Basics         |
++-------------------------------------+
+Line 132 --> Set encryption parameters and print
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 4096
+|   coeff_modulus size: 109 (36 + 36 + 37) bits
+|   plain_modulus: 1024
+\
+
+~~~~~~ A naive way to calculate 4(x^2+1)(x+1)^2. ~~~~~~
+Line 199 --> Express x = 6 as a plaintext polynomial 0x6.
+Line 208 --> Encrypt x_plain to x_encrypted.
+    + size of freshly encrypted x: 2
+    + noise budget in freshly encrypted x: 55 bits
+    + decryption of x_encrypted: 0x6 ...... Correct.
+Line 255 --> Compute x_sq_plus_one (x^2+1).
+    + size of x_sq_plus_one: 3
+    + noise budget in x_sq_plus_one: 33 bits
+    + decryption of x_sq_plus_one: 0x25 ...... Correct.
+Line 285 --> Compute x_plus_one_sq ((x+1)^2).
+    + size of x_plus_one_sq: 3
+    + noise budget in x_plus_one_sq: 33 bits
+    + decryption of x_plus_one_sq: 0x31 ...... Correct.
+Line 301 --> Compute encrypted_result (4(x^2+1)(x+1)^2).
+    + size of encrypted_result: 5
+    + noise budget in encrypted_result: 4 bits
+NOTE: Decryption can be incorrect if noise budget is zero.
+
+~~~~~~ A better way to calculate 4(x^2+1)(x+1)^2. ~~~~~~
+Line 341 --> Generate relinearization keys.
+Line 348 --> Compute and relinearize x_squared (x^2),
+             then compute x_sq_plus_one (x^2+1)
+    + size of x_squared: 3
+    + size of x_squared (after relinearization): 2
+    + noise budget in x_sq_plus_one: 33 bits
+    + decryption of x_sq_plus_one: 0x25 ...... Correct.
+Line 364 --> Compute x_plus_one (x+1),
+             then compute and relinearize x_plus_one_sq ((x+1)^2).
+    + size of x_plus_one_sq: 3
+    + noise budget in x_plus_one_sq: 33 bits
+    + decryption of x_plus_one_sq: 0x31 ...... Correct.
+Line 379 --> Compute and relinearize encrypted_result (4(x^2+1)(x+1)^2).
+    + size of encrypted_result: 3
+    + size of encrypted_result (after relinearization): 2
+    + noise budget in encrypted_result: 10 bits
+
+NOTE: Notice the increase in remaining noise budget.
+Line 397 --> Decrypt encrypted_result (4(x^2+1)(x+1)^2).
+    + decryption of 4(x^2+1)(x+1)^2 = 0x54 ...... Correct.
+
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[     14 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 2
+
++-----------------------------------+
+|         Example: Encoders         |
++-----------------------------------+
+
++-----------------------------------------------------+
+|         Example: Encoders / Integer Encoder         |
++-----------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 4096
+|   coeff_modulus size: 109 (36 + 36 + 37) bits
+|   plain_modulus: 512
+\
+
+Line 106 --> Encode 5 as polynomial 1x^2 + 1 (plain1),
+             encode -7 as polynomial 1FFx^2 + 1FFx^1 + 1FF (plain2).
+Line 119 --> Encrypt plain1 to encrypted1 and plain2 to encrypted2.
+    + Noise budget in encrypted1: 55 bits
+    + Noise budget in encrypted2: 56 bits
+Line 133 --> Compute encrypted_result = (-encrypted1 + encrypted2) * encrypted2.
+    + Noise budget in encrypted_result: 35 bits
+Line 141 --> Decrypt encrypted_result to plain_result.
+    + Plaintext polynomial: 2x^4 + 3x^3 + 5x^2 + 3x^1 + 2
+Line 154 --> Decode plain_result.
+    + Decoded integer: 84...... Correct.
+
++---------------------------------------------------+
+|         Example: Encoders / Batch Encoder         |
++---------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+|   plain_modulus: 1032193
+\
+
+Batching enabled: true
+Plaintext matrix row size: 4096
+Input plaintext matrix:
+
+    [  0,  1,  2,  3,  0, ...,  0,  0,  0,  0,  0 ]
+    [  4,  5,  6,  7,  0, ...,  0,  0,  0,  0,  0 ]
+
+Line 247 --> Encode plaintext matrix:
+    + Decode plaintext matrix ...... Correct.
+
+    [  0,  1,  2,  3,  0, ...,  0,  0,  0,  0,  0 ]
+    [  4,  5,  6,  7,  0, ...,  0,  0,  0,  0,  0 ]
+
+Line 264 --> Encrypt plain_matrix to encrypted_matrix.
+    + Noise budget in encrypted_matrix: 146 bits
+
+Second input plaintext matrix:
+
+    [  1,  2,  1,  2,  1, ...,  2,  1,  2,  1,  2 ]
+    [  1,  2,  1,  2,  1, ...,  2,  1,  2,  1,  2 ]
+
+Line 295 --> Sum, square, and relinearize.
+    + Noise budget in result: 114 bits
+Line 311 --> Decrypt and decode result.
+    + Result plaintext matrix ...... Correct.
+
+    [  1,  9,  9, 25,  1, ...,  4,  1,  4,  1,  4 ]
+    [ 25, 49, 49, 81,  1, ...,  4,  1,  4,  1,  4 ]
+
+
++--------------------------------------------------+
+|         Example: Encoders / CKKS Encoder         |
++--------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 200 (40 + 40 + 40 + 40 + 40) bits
+\
+
+Number of slots: 4096
+Input vector: 
+
+    [ 0.000, 1.100, 2.200, 3.300 ]
+
+Line 420 --> Encode input vector.
+    + Decode input vector ...... Correct.
+
+    [ -0.000, 1.100, 2.200, 3.300, ..., 0.000, -0.000, 0.000, -0.000 ]
+
+Line 436 --> Encrypt input vector, square, and relinearize.
+    + Scale in squared input: 1.15292e+18 (60 bits)
+Line 456 --> Decrypt and decode.
+    + Result vector ...... Correct.
+
+    [ 0.000, 1.210, 4.840, 10.890, ..., 0.000, 0.000, 0.000, 0.000 ]
+
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[     43 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 3
+
++---------------------------------+
+|         Example: Levels         |
++---------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 210 (50 + 30 + 30 + 50 + 50) bits
+|   plain_modulus: 1032193
+\
+
+Line 107 --> Print the modulus switching chain.
+----> Level (chain index): 4 ...... key_context_data()
+      parms_id: 26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 3fff4001 3fffffffcc001 3ffffffffc001 
+\
+ \--> Level (chain index): 3 ...... first_context_data()
+      parms_id: 211ee2c43ec16b18 2c176ee3b851d741 490eacf1dd5930b3 3212f104b7a60a0c 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 3fff4001 3fffffffcc001 
+\
+ \--> Level (chain index): 2
+      parms_id: 85626ad91458073f e186437698f5ff4e a1e71da26dabe039 9b66f4ab523b9be1 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 3fff4001 
+\
+ \--> Level (chain index): 1
+      parms_id: 73b7dc26d10a15b9 56ce8bdd07324dfa 7ff7b8ec16a6f20f b80f7319f2a28ac1 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 
+\
+ \--> Level (chain index): 0 ...... last_context_data()
+      parms_id: af7f6dac55528cf7 2f532a7e2362ab73 03aeaedd1059515e a515111177a581ca 
+      coeff_modulus primes: 3ffffffef4001 
+\
+ \--> End of chain reached
+
+Line 172 --> Print the parameter IDs of generated elements.
+    + public_key:  26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+    + secret_key:  26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+    + relin_keys:  26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+    + galois_keys: 26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+    + plain:       0000000000000000 0000000000000000 0000000000000000 0000000000000000  (not set in BFV)
+    + encrypted:   211ee2c43ec16b18 2c176ee3b851d741 490eacf1dd5930b3 3212f104b7a60a0c 
+
+Line 200 --> Perform modulus switching on encrypted and print.
+----> Level (chain index): 3
+      parms_id of encrypted: 211ee2c43ec16b18 2c176ee3b851d741 490eacf1dd5930b3 3212f104b7a60a0c 
+      Noise budget at this level: 132 bits
+\
+ \--> Level (chain index): 2
+      parms_id of encrypted: 85626ad91458073f e186437698f5ff4e a1e71da26dabe039 9b66f4ab523b9be1 
+      Noise budget at this level: 82 bits
+\
+ \--> Level (chain index): 1
+      parms_id of encrypted: 73b7dc26d10a15b9 56ce8bdd07324dfa 7ff7b8ec16a6f20f b80f7319f2a28ac1 
+      Noise budget at this level: 52 bits
+\
+ \--> Level (chain index): 0
+      parms_id of encrypted: af7f6dac55528cf7 2f532a7e2362ab73 03aeaedd1059515e a515111177a581ca 
+      Noise budget at this level: 22 bits
+\
+ \--> End of chain reached
+
+Line 228 --> Decrypt still works after modulus switching.
+    + Decryption of encrypted: 1x^3 + 2x^2 + 3x^1 + 4 ...... Correct.
+
+Computation is more efficient with modulus switching.
+Line 248 --> Compute the 8th power.
+    + Noise budget fresh:                   132 bits
+    + Noise budget of the 2nd power:         99 bits
+    + Noise budget of the 4th power:         62 bits
+    + Noise budget after modulus switching:  62 bits
+    + Noise budget of the 8th power:         24 bits
+    + Noise budget after modulus switching:  24 bits
+    + Decryption of the 8th power (hexadecimal) ...... Correct.
+    1x^24 + 10x^23 + 88x^22 + 330x^21 + EFCx^20 + 3A30x^19 + C0B8x^18 + 22BB0x^17 + 58666x^16 + C88D0x^15 + 9C377x^14 + F4C0Ex^13 + E8B38x^12 + 5EE89x^11 + F8BFFx^10 + 30304x^9 + 5B9D4x^8 + 12653x^7 + 4DFB5x^6 + 879F8x^5 + 825FBx^4 + F1FFEx^3 + 3FFFFx^2 + 60000x^1 + 10000
+
+Optionally disable modulus switching chain expansion.
+Line 308 --> Print the modulus switching chain.
+----> Level (chain index): 1
+      parms_id: 26d0ad92b6a78b12 667d7d6411d19434 18ade70427566279 84e0aa06442af302 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 3fff4001 3fffffffcc001 3ffffffffc001 
+\
+ \--> Level (chain index): 0
+      parms_id: 211ee2c43ec16b18 2c176ee3b851d741 490eacf1dd5930b3 3212f104b7a60a0c 
+      coeff_modulus primes: 3ffffffef4001 3ffe8001 3fff4001 3fffffffcc001 
+\
+ \--> End of chain reached
+
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[    115 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 4
+
++--------------------------------------+
+|         Example: CKKS Basics         |
++--------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 200 (60 + 40 + 40 + 60) bits
+\
+
+Number of slots: 4096
+Input vector: 
+
+    [ 0.0000000, 0.0002442, 0.0004884, ..., 0.9995116, 0.9997558, 1.0000000 ]
+
+Evaluating polynomial PI*x^3 + 0.4x + 1 ...
+Line 125 --> Encode input vectors.
+Line 136 --> Compute x^2 and relinearize:
+    + Scale of x^2 before rescale: 80 bits
+Line 149 --> Rescale x^2.
+    + Scale of x^2 after rescale: 40 bits
+Line 163 --> Compute and rescale PI*x.
+    + Scale of PI*x before rescale: 80 bits
+    + Scale of PI*x after rescale: 40 bits
+Line 180 --> Compute, relinearize, and rescale (PI*x)*x^2.
+    + Scale of PI*x^3 before rescale: 80 bits
+    + Scale of PI*x^3 after rescale: 40 bits
+Line 194 --> Compute and rescale 0.4*x.
+    + Scale of 0.4*x before rescale: 80 bits
+    + Scale of 0.4*x after rescale: 40 bits
+
+Line 213 --> Parameters used by all three terms are different.
+    + Modulus chain index for x3_encrypted: 0
+    + Modulus chain index for x1_encrypted: 1
+    + Modulus chain index for plain_coeff0: 2
+
+Line 241 --> The exact scales of all three terms are different:
+    + Exact scale in PI*x^3: 1099512659965.7514648438
+    + Exact scale in  0.4*x: 1099511775231.0197753906
+    + Exact scale in      1: 1099511627776.0000000000
+
+Line 266 --> Normalize scales to 2^40.
+Line 277 --> Normalize encryption parameters to the lowest level.
+Line 286 --> Compute PI*x^3 + 0.4*x + 1.
+Line 296 --> Decrypt and decode PI*x^3 + 0.4x + 1.
+    + Expected result:
+
+    [ 1.0000000, 1.0000977, 1.0001954, ..., 4.5367965, 4.5391940, 4.5415926 ]
+
+    + Computed result ...... Correct.
+
+    [ 1.0000000, 1.0000977, 1.0001954, ..., 4.5367995, 4.5391970, 4.5415957 ]
+
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[    121 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 5
+
++-----------------------------------+
+|         Example: Rotation         |
++-----------------------------------+
+
++-----------------------------------------------------+
+|         Example: Rotation / Rotation in BFV         |
++-----------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+|   plain_modulus: 1032193
+\
+
+Plaintext matrix row size: 4096
+Input plaintext matrix:
+
+    [  0,  1,  2,  3,  0, ...,  0,  0,  0,  0,  0 ]
+    [  4,  5,  6,  7,  0, ...,  0,  0,  0,  0,  0 ]
+
+Line  60 --> Encode and encrypt.
+    + Noise budget in fresh encryption: 146 bits
+
+Line  78 --> Rotate rows 3 steps left.
+    + Noise budget after rotation: 142 bits
+    + Decrypt and decode ...... Correct.
+
+    [  3,  0,  0,  0,  0, ...,  0,  0,  0,  1,  2 ]
+    [  7,  0,  0,  0,  0, ...,  0,  0,  4,  5,  6 ]
+
+Line  92 --> Rotate columns.
+    + Noise budget after rotation: 142 bits
+    + Decrypt and decode ...... Correct.
+
+    [  7,  0,  0,  0,  0, ...,  0,  0,  4,  5,  6 ]
+    [  3,  0,  0,  0,  0, ...,  0,  0,  0,  1,  2 ]
+
+Line 105 --> Rotate rows 4 steps right.
+    + Noise budget after rotation: 142 bits
+    + Decrypt and decode ...... Correct.
+
+    [  0,  4,  5,  6,  7, ...,  0,  0,  0,  0,  0 ]
+    [  0,  0,  1,  2,  3, ...,  0,  0,  0,  0,  0 ]
+
+
++------------------------------------------------------+
+|         Example: Rotation / Rotation in CKKS         |
++------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 200 (40 + 40 + 40 + 40 + 40) bits
+\
+
+Number of slots: 4096
+Input vector:
+
+    [ 0.0000000, 0.0002442, 0.0004884, ..., 0.9995116, 0.9997558, 1.0000000 ]
+
+Line 168 --> Encode and encrypt.
+Line 176 --> Rotate 2 steps left.
+    + Decrypt and decode ...... Correct.
+
+    [ 0.0004884, 0.0007326, 0.0009768, ..., 1.0000000, -0.0000000, 0.0002442 ]
+
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[    121 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 6
+
++-------------------------------------------+
+|         Example: Performance Test         |
++-------------------------------------------+
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 1
+
++--------------------------------------------------------------------------+
+|         BFV Performance Test with Degrees: 4096, 8192, and 16384         |
++--------------------------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 4096
+|   coeff_modulus size: 109 (36 + 36 + 37) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [25310 microseconds]
+Generating Galois keys: Done [539955 microseconds]
+Running tests .......... Done
+
+Average batch: 997 microseconds
+Average unbatch: 748 microseconds
+Average encrypt: 22082 microseconds
+Average decrypt: 7120 microseconds
+Average add: 116 microseconds
+Average multiply: 74624 microseconds
+Average multiply plain: 8826 microseconds
+Average square: 55188 microseconds
+Average relinearize: 16670 microseconds
+Average rotate rows one step: 16682 microseconds
+Average rotate rows random: 65851 microseconds
+Average rotate columns: 16689 microseconds
+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [144001 microseconds]
+Generating Galois keys: Done [3369258 microseconds]
+Running tests .......... Done
+
+Average batch: 2111 microseconds
+Average unbatch: 1574 microseconds
+Average encrypt: 64665 microseconds
+Average decrypt: 26156 microseconds
+Average add: 501 microseconds
+Average multiply: 280578 microseconds
+Average multiply plain: 37512 microseconds
+Average square: 209751 microseconds
+Average relinearize: 72661 microseconds
+Average rotate rows one step: 73919 microseconds
+Average rotate rows random: 293944 microseconds
+Average rotate columns: 74008 microseconds
+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 16384
+|   coeff_modulus size: 438 (48 + 48 + 48 + 49 + 49 + 49 + 49 + 49 + 49) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [1006516 microseconds]
+Generating Galois keys: Done [25628423 microseconds]
+Running tests .......... Done
+
+Average batch: 4492 microseconds
+Average unbatch: 3380 microseconds
+Average encrypt: 219998 microseconds
+Average decrypt: 100806 microseconds
+Average add: 2020 microseconds
+Average multiply: 1154446 microseconds
+Average multiply plain: 158578 microseconds
+Average square: 867475 microseconds
+Average relinearize: 396574 microseconds
+Average rotate rows one step: 400566 microseconds
+Average rotate rows random: 1918037 microseconds
+Average rotate columns: 399814 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 1024
+
++--------------------------------------------------------+
+|         BFV Performance Test with Degree: 1024         |
++--------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 1024
+|   coeff_modulus size: 27 (27) bits
+|   plain_modulus: 12289
+\
+
+Generating secret/public keys: Done
+Running tests .......... Done
+
+Average batch: 233 microseconds
+Average unbatch: 186 microseconds
+Average encrypt: 3329 microseconds
+Average decrypt: 1566 microseconds
+Average add: 25 microseconds
+Average multiply: 11460 microseconds
+Average multiply plain: 1006 microseconds
+Average square: 8252 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 2048
+
++--------------------------------------------------------+
+|         BFV Performance Test with Degree: 2048         |
++--------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 2048
+|   coeff_modulus size: 54 (54) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Running tests .......... Done
+
+Average batch: 466 microseconds
+Average unbatch: 344 microseconds
+Average encrypt: 6524 microseconds
+Average decrypt: 2417 microseconds
+Average add: 36 microseconds
+Average multiply: 22102 microseconds
+Average multiply plain: 2076 microseconds
+Average square: 16237 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 4096
+
++--------------------------------------------------------+
+|         BFV Performance Test with Degree: 4096         |
++--------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 4096
+|   coeff_modulus size: 109 (36 + 36 + 37) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [25330 microseconds]
+Generating Galois keys: Done [523651 microseconds]
+Running tests .......... Done
+
+Average batch: 984 microseconds
+Average unbatch: 740 microseconds
+Average encrypt: 22071 microseconds
+Average decrypt: 7137 microseconds
+Average add: 116 microseconds
+Average multiply: 74159 microseconds
+Average multiply plain: 8810 microseconds
+Average square: 55181 microseconds
+Average relinearize: 16476 microseconds
+Average rotate rows one step: 16613 microseconds
+Average rotate rows random: 53823 microseconds
+Average rotate columns: 16624 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 8192
+
++--------------------------------------------------------+
+|         BFV Performance Test with Degree: 8192         |
++--------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [144394 microseconds]
+Generating Galois keys: Done [3350613 microseconds]
+Running tests .......... Done
+
+Average batch: 2092 microseconds
+Average unbatch: 1569 microseconds
+Average encrypt: 64670 microseconds
+Average decrypt: 26089 microseconds
+Average add: 498 microseconds
+Average multiply: 279802 microseconds
+Average multiply plain: 37527 microseconds
+Average square: 209815 microseconds
+Average relinearize: 72642 microseconds
+Average rotate rows one step: 73975 microseconds
+Average rotate rows random: 341561 microseconds
+Average rotate columns: 73992 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 16384
+
++---------------------------------------------------------+
+|         BFV Performance Test with Degree: 16384         |
++---------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 16384
+|   coeff_modulus size: 438 (48 + 48 + 48 + 49 + 49 + 49 + 49 + 49 + 49) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [967333 microseconds]
+Generating Galois keys: Done [24693334 microseconds]
+Running tests .......... Done
+
+Average batch: 4435 microseconds
+Average unbatch: 3373 microseconds
+Average encrypt: 219878 microseconds
+Average decrypt: 100465 microseconds
+Average add: 2047 microseconds
+Average multiply: 1146392 microseconds
+Average multiply plain: 158410 microseconds
+Average square: 867853 microseconds
+Average relinearize: 396322 microseconds
+Average rotate rows one step: 400704 microseconds
+Average rotate rows random: 1765455 microseconds
+Average rotate columns: 400718 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 2
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 32768
+
++---------------------------------------------------------+
+|         BFV Performance Test with Degree: 32768         |
++---------------------------------------------------------+
+3
+/
+| Encryption parameters :
+|   scheme: BFV
+|   poly_modulus_degree: 32768
+|   coeff_modulus size: 881 (55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 56) bits
+|   plain_modulus: 786433
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [6521159 microseconds]
+terminate called after throwing an instance of 'std::bad_alloc'
+  what():  std::bad_alloc
+Aborted
+pi@raspberrypi:~/SEAL/native/bin$ 3
+-bash: 3: command not found
+pi@raspberrypi:~/SEAL/native/bin$ 3./sealexamples 
+Microsoft SEAL version: 3.4.5
++---------------------------------------------------------+
+| The following examples should be executed while reading |
+| comments in associated files in native/examples/.       |
++---------------------------------------------------------+
+| Examples                   | Source Files               |
++----------------------------+----------------------------+
+| 1. BFV Basics              | 1_bfv_basics.cpp           |
+| 2. Encoders                | 2_encoders.cpp             |
+| 3. Levels                  | 3_levels.cpp               |
+| 4. CKKS Basics             | 4_ckks_basics.cpp          |
+| 5. Rotation                | 5_rotation.cpp             |
+| 6. Performance Test        | 6_performance.cpp          |
++----------------------------+----------------------------+
+[      0 MB] Total allocation from the memory pool
+
+> Run example (1 ~ 6) or exit (0): 6
+
++-------------------------------------------+
+|         Example: Performance Test         |
++-------------------------------------------+
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 3
+
++---------------------------------------------------------------------------+
+|         CKKS Performance Test with Degrees: 4096, 8192, and 16384         |
++---------------------------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 4096
+|   coeff_modulus size: 109 (36 + 36 + 37) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [27323 microseconds]
+Generating Galois keys: Done [542611 microseconds]
+Running tests .......... Done
+
+Average encode: 7514 microseconds
+Average decode: 14735 microseconds
+Average encrypt: 21417 microseconds
+Average decrypt: 842 microseconds
+Average add: 114 microseconds
+Average multiply: 2951 microseconds
+Average multiply plain: 1243 microseconds
+Average square: 2137 microseconds
+Average relinearize: 16323 microseconds
+Average rescale: 6235 microseconds
+Average rotate vector one step: 16734 microseconds
+Average rotate vector random: 57636 microseconds
+Average complex conjugate: 16684 microseconds
+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [149154 microseconds]
+Generating Galois keys: Done [3492178 microseconds]
+Running tests .......... Done
+
+Average encode: 20257 microseconds
+Average decode: 57825 microseconds
+Average encrypt: 66505 microseconds
+Average decrypt: 3325 microseconds
+Average add: 446 microseconds
+Average multiply: 12627 microseconds
+Average multiply plain: 4921 microseconds
+Average square: 9173 microseconds
+Average relinearize: 71417 microseconds
+Average rescale: 30999 microseconds
+Average rotate vector one step: 73160 microseconds
+Average rotate vector random: 297600 microseconds
+Average complex conjugate: 73036 microseconds
+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 16384
+|   coeff_modulus size: 438 (48 + 48 + 48 + 49 + 49 + 49 + 49 + 49 + 49) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [999845 microseconds]
+Generating Galois keys: Done [25753870 microseconds]
+Running tests .......... Done
+
+Average encode: 61416 microseconds
+Average decode: 257827 microseconds
+Average encrypt: 232468 microseconds
+Average decrypt: 13085 microseconds
+Average add: 1998 microseconds
+Average multiply: 48889 microseconds
+Average multiply plain: 19506 microseconds
+Average square: 36203 microseconds
+Average relinearize: 391350 microseconds
+Average rescale: 140706 microseconds
+Average rotate vector one step: 399765 microseconds
+Average rotate vector random: 1790253 microseconds
+Average complex conjugate: 398881 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 4
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 8192. 
+
++---------------------------------------------------------+
+|         CKKS Performance Test with Degree: 8192         |
++---------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 8192
+|   coeff_modulus size: 218 (43 + 43 + 44 + 44 + 44) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [144646 microseconds]
+Generating Galois keys: Done [3392834 microseconds]
+Running tests .......... Done
+
+Average encode: 20361 microseconds
+Average decode: 57217 microseconds
+Average encrypt: 66226 microseconds
+Average decrypt: 3292 microseconds
+Average add: 447 microseconds
+Average multiply: 12249 microseconds
+Average multiply plain: 4847 microseconds
+Average square: 8827 microseconds
+Average relinearize: 71084 microseconds
+Average rescale: 31018 microseconds
+Average rotate vector one step: 73120 microseconds
+Average rotate vector random: 300960 microseconds
+Average complex conjugate: 73222 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 4
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 16384
+
++----------------------------------------------------------+
+|         CKKS Performance Test with Degree: 16384         |
++----------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 16384
+|   coeff_modulus size: 438 (48 + 48 + 48 + 49 + 49 + 49 + 49 + 49 + 49) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [971090 microseconds]
+Generating Galois keys: Done [25155288 microseconds]
+Running tests .......... Done
+
+Average encode: 60829 microseconds
+Average decode: 254301 microseconds
+Average encrypt: 230879 microseconds
+Average decrypt: 13089 microseconds
+Average add: 2025 microseconds
+Average multiply: 47862 microseconds
+Average multiply plain: 19484 microseconds
+Average square: 34859 microseconds
+Average relinearize: 390451 microseconds
+Average rescale: 140096 microseconds
+Average rotate vector one step: 399422 microseconds
+Average rotate vector random: 1640200 microseconds
+Average complex conjugate: 399846 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 4
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 1024
+
++---------------------------------------------------------+
+|         CKKS Performance Test with Degree: 1024         |
++---------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 1024
+|   coeff_modulus size: 27 (27) bits
+\
+
+Generating secret/public keys: Done
+Running tests .......... Done
+
+Average encode: 1801 microseconds
+Average decode: 2594 microseconds
+Average encrypt: 3016 microseconds
+Average decrypt: 148 microseconds
+Average add: 27 microseconds
+Average multiply: 427 microseconds
+Average multiply plain: 186 microseconds
+Average square: 302 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 4
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 2048
+
++---------------------------------------------------------+
+|         CKKS Performance Test with Degree: 2048         |
++---------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 2048
+|   coeff_modulus size: 54 (54) bits
+\
+
+Generating secret/public keys: Done
+Running tests .......... Done
+
+Average encode: 2969 microseconds
+Average decode: 4250 microseconds
+Average encrypt: 4455 microseconds
+Average decrypt: 215 microseconds
+Average add: 36 microseconds
+Average multiply: 729 microseconds
+Average multiply plain: 316 microseconds
+Average square: 517 microseconds
+
+Select a scheme (and optionally poly_modulus_degree):
+  1. BFV with default degrees
+  2. BFV with a custom degree
+  3. CKKS with default degrees
+  4. CKKS with a custom degree
+  0. Back to main menu
+
+> Run performance test (1 ~ 4) or go back (0): 4
+
+Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): 32768
+
++----------------------------------------------------------+
+|         CKKS Performance Test with Degree: 32768         |
++----------------------------------------------------------+
+/
+| Encryption parameters :
+|   scheme: CKKS
+|   poly_modulus_degree: 32768
+|   coeff_modulus size: 881 (55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 55 + 56) bits
+\
+
+Generating secret/public keys: Done
+Generating relinearization keys: Done [6520912 microseconds]
+terminate called after throwing an instance of 'std::bad_alloc'
+  what():  std::bad_alloc
+Aborted
+pi@raspberrypi:~/SEAL/native/bin$ 
