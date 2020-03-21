@@ -1,8 +1,6 @@
 # The Cost of Private Computation:
 
-# Homomorphic Encryption for Low SWaP
-
-# Platforms
+# Homomorphic Encryption for Low SWaP Platforms
 
 Daniel Achee
 
