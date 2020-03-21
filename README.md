@@ -6,7 +6,7 @@
 
 Daniel Achee
 Jennifer Quintana
-2020.03. 20
+2020.03.20
 EE209AS Embedded Systems Cybersecurity
 
 _This project explores the landscape of private, secure data analytics. If a user wants to analyze data
@@ -42,8 +42,6 @@ equivalent analysis performed on the plaintext data [3] and the structure of the
 preserved [4]. A variety of partially and fully homomorphic encryption schemes are available for
 research and analysis. Fully homomorphic encryption (FHE) schemes allow for evaluation of arbitrarily
 complex programs on encrypted data [5], whereas partially homomorphic encryption (PHE) schemes are
-
-
 homomorphic with respect to only one type of data operation, such as addition or multiplication. PHE is
 more computationally efficient than FHE, but trades some security for that efficiency [1].
 
@@ -117,7 +115,7 @@ greater than 5- 1 0W. They were also prohibitively expensive for the purpose of 
 on the order of $10,000.
 
 For the Amazon Webservices Elastic Cloud Computing goal, we implemented the SEAL libraries on the
-following instances, describe in Table 2.
+following instances, described in Table 2.
 
 ![Table 2](resources/Table2.PNG)
 
@@ -368,10 +366,8 @@ experiment compared the HElib and SEAL libraries to implement a fully homomorphi
 scheme on a privacy preserving protocol for wearable devices in healthcare systems, shown in Figure 12
 [9].
 
-```
-Figure 12 : Wireless Body Area Network implementation of homomorphic encryption for IoT device security and protection of
-personal identifying information related to healthcare applications and health tracking [9].
-```
+![Figure 12](resources/Fig12.PNG)
+
 The implementation by this group was performed on a PC and a Raspberry Pi combination. The number
 of homomorphic operations were limited by function, to account for the limited processing resources on
 the Raspberry Pi [9]. They separated and measured the computation and communication costs using
