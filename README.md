@@ -1,4 +1,4 @@
-![alt text](https://github.com/daniel-achee/ece209-project/blob/master/209AS_FinalReport.pdf)
+![Example Image Embedded](containerized_deployments.jpeg)
 # Homomorphic Encryption Implementation For Small SWaP Platforms
 By Daniel Achee and Jennifer Quintana
 
