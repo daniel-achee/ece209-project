@@ -5,8 +5,11 @@
 # Platforms
 
 Daniel Achee
+
 Jennifer Quintana
+
 2020.03.20
+
 EE209AS Embedded Systems Cybersecurity
 
 _This project explores the landscape of private, secure data analytics. If a user wants to analyze data
