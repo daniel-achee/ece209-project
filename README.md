@@ -158,10 +158,10 @@ single platform instance. The implementation and results are discussed in the ne
 After examining potential low SWaP platforms, we first selected the DE10 Nano SoC, a development kit
 with a hybrid ARM processor and FPGA Cyclone V chip, manufactured by Intel, shown in Figure 1.
 ![Intel DE10 Nano SoC](resources/Figure1.png)
-```
-Figure 1 : Intel DE10 Nano SoC, dual-core Cortex A9, 32 - bit ARM processor, Cylcone V FPGA with 110,000 Programmable Logic
-Elements (PLEs).
-```
+
+*Figure 1 : Intel DE10 Nano SoC, dual-core Cortex A9, 32 - bit ARM processor, Cylcone V FPGA with 110,000 Programmable Logic
+Elements (PLEs).*
+
 The link to the product page is in 7 .0 Appendix A: Product & Application Links. We used a Yocto Poky
 Linux OS booted from a 32GB μSD card slot on the board. The development board also had 1GB DDR
 memory accessible by the processor and FPGA fabric. Our interface to the board was Ethernet. A top
