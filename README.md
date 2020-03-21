@@ -141,20 +141,15 @@ single platform instance. The implementation and results are discussed in the ne
 After examining potential low SWaP platforms, we first selected the DE10 Nano SoC, a development kit
 with a hybrid ARM processor and FPGA Cyclone V chip, manufactured by Intel, shown in Figure 1.
 
-![Intel DE10 Nano SoC](resources/Figure1.png)
-
-*Figure 1 : Intel DE10 Nano SoC, dual-core Cortex A9, 32 - bit ARM processor, Cylcone V FPGA with 110,000 Programmable Logic
-Elements (PLEs).*
+![Figure1](resources/Fig1.PNG)
 
 The link to the product page is in 7 .0 Appendix A: Product & Application Links. We used a Yocto Poky
 Linux OS booted from a 32GB μSD card slot on the board. The development board also had 1GB DDR
 memory accessible by the processor and FPGA fabric. Our interface to the board was Ethernet. A top
 level functional block diagram is shown in Figure 2.
 
+![Figure2](resources/Fig2.PNG)
 
-```
-Figure 2 : Top level block diagram of the DE10 Nano SoC development kit.
-```
 We first attempted to instantiate the SEAL libraries using the Linux kernel running on the ARM Cortex A
 processor. However, we quickly learned that many of the SEAL library functions are not compatible with
 a 32 - bit instruction set, so our processor was unable to compile and run any meaningful data. We then
@@ -168,17 +163,14 @@ capabilities.
 We switched then to an alternate, a Raspberry Pi 4, with the 4GB RAM option. The board used for this
 experiment is shown in Figure 3.
 
-```
-Figure 3 : Raspberry Pi 4, 4GB RAM, Cortex A78 quad-core 64-bit ARM processor.
-```
+![Figure3](resources/Fig3.PNG)
 
 The Raspberry Pi 4 with 4GB RAM has a 64-bit ARM Cortex A78 quad core 64-bit processor, which was
 determined to be sufficient for running the majority of functions of the SEAL libraries. A top level
 diagram of the Raspberry Pi 4 development kit is shown in Figure 4.
 
-```
-Figure 4 : Top level block diagram of basic features for the Raspberry Pi 4 development kit.
-```
+![Figure4](resources/Fig4.PNG)
+
 The OS was loaded onto a μSD card, using a modified Raspbian image provided at the link in 7.
 Appendix A: Product & Application Links. We opened an SSH terminal using PuTTY to communicate with
 the Raspberry Pi.
@@ -195,10 +187,7 @@ For objective 2, we implemented a series of AWC EC2 instances to compare a gener
 computation optimized and memory optimized high-performance computing options for hosting
 homomorphic encryption schemes. A view of the AWS EC2 dashboard is shown in Figure 5.
 
-```
-Figure 5 : AWS EC2 dashboard with multiple instances used in the implementation and characterization of the homomorphic
-encryption schemes provided by SEAL. AWS EC2 account shown is a screenshot from J. Quintana.
-```
+![Figure5](resources/Fig5.PNG)
 
 We instantiated the instances using an Ubuntu 18.04 server image and accessed them via SSH from our
 local machines. We installed the SEAL libraries and performed all benchmarking via the SSH session.
@@ -212,9 +201,8 @@ constrained client and a high-performance server. We added a series of options t
 used the c5n_large to test the client-server model, compared to the benchmarks obtained under
 objective two. The added performance test options are shown in Figure 6.
 
-```
-Figure 6 : Client-server implementation benchmarking options, in SEAL Performance Test menu.
-```
+![Figure6](resources/Fig6.PNG)
+
 The client-server implementation had limited success over WiFi with the Raspberry Pi to AWS EC
 instance, so much of the benchmarking was performed between AWS EC2 instances. Improvements on
 this implementation are suggested in 5.0 Summary & Future Work.
@@ -226,7 +214,6 @@ modified client-server model included average computation time for various funct
 the performance tests for different selected polynomial degrees. We also looked at CPU usage percent
 using the basic Linux diagnostic tools, but this measurement, though averaged over multiple test cycles,
 is crude and should not be used as a determination in our success criteria.
-
 
 Performance metrics for objectives one and two were obtained by J. Quintana. Performance metrics for
 objective three were obtained by D. Achee. All results were obtained using an SSH connection to each
@@ -254,9 +241,8 @@ not computed.
 For the functions add, multiply (ciphertext), multiply (plaintext), and square, the computation time for
 the BFV and CKKS implementations are shown in Figure 7.
 
+![Figure7](resources/Fig7.PNG)
 
-(^)
-_Figure 7 : BFV and CKKS encryption scheme computation times for Raspberry Pi 4 low-SWaP implementations._
 The BFV and CKKS computation time for the addition functions track closely to one another, but the
 multiplication and squaring functions for CKKS complete with much less time than those equivalent
 functions for BFV. The BFV functions used in the SEAL libraries use a tuple of the polynomial which
@@ -287,10 +273,8 @@ The add, multiply (ciphertext), multiply (plaintext), and square functions are c
 resource-constrained instance, which is most comparable to a small SWaP platform, and the c5n_large
 and r5a_large optimized instances. A graphical comparison of the results is shown in.
 
+![Figure8](resources/Fig8.PNG)
 
-```
-Figure 8 : BFV and CKKS encryption scheme computation times for AWS EC2 instances.
-```
 Similar to the low SWaP Raspberry Pi results, the AWS EC2 instances track well to one another for the
 add function, but the CKKS implementation of multiply (ciphertext and plaintext) and square functions
 are more computationally efficient than their BFV equivalents. Even though the t2_micro instance is
@@ -300,10 +284,8 @@ instances, their computation times are closely grouped.
 The AWS EC2 instance computation times are overlaid with the Raspberry Pi 4 computation times from
 objective 1. These are shown in Figure 9.
 
+![Figure9](resources/Fig9.PNG)
 
-```
-Figure 9 : BFV and CKKS encryption scheme computation times for Raspberry Pi 4 and AWS EC2 instances.
-```
 The Raspberry Pi’s implementation of the BFV encryption scheme, takes significantly longer for higher
 polynomial degrees than the AWS EC2 instances for the equivalent computation. For the CKKS
 implementation, the multiplication and square functions for both AWS EC2 and Raspberry Pi
@@ -323,10 +305,8 @@ The client server implementation was performed on the BFV encryption scheme, bas
 from objective 2. A screenshot of the console view for the updated client-server computation is shown
 in Figure 10.
 
+![Figure10](resources/Fig10.PNG)
 
-```
-Figure 10 : Console view of client server implementation, taken with c5n_large AWS EC2 instance.
-```
 For the client-server implementation, the code was instrumented in the same manner for computation
 time measurements. We included the network traffic time in this calculation because in terms of total
 cost of the system, network traffic time must be considered when being compared to an entirely local
@@ -338,10 +318,8 @@ and server, which was greater than the local computation time for low polynomial
 contribution of the serialized and transmitted data exceeds the computational time for the function
 itself. These results are shown in Figure 11.
 
+![Figure11](resources/Fig11.PNG)
 
-(^)
-_Figure 11 : Baseline vs. client-server model computation time for add, multiply (ciphertext), multiply (plaintext), and square
-functions using the modified SEAL library functions._
 We conclude that the serialization and transmission of the data contributes to the total computation
 time for each function in a manner than exceeds the benefit of distributing the computation between
 platforms. Future work to improve the transfer of data between platforms may reduce this cost, so that
