@@ -325,9 +325,9 @@ time for each function in a manner than exceeds the benefit of distributing the 
 platforms. Future work to improve the transfer of data between platforms may reduce this cost, so that
 the client-server model yields improved results. The size of the object in bytes for each polynomial
 degree is shown in Table 11.
-_Table 11 : Object size vs. polynomial degree._
-**Polynomial Degree** 1024 2048 4096 8192 16384
-**Object Size [bytes]** 16 , 489 32 , 873 131 , 177 524 , 393 2 , 097 , 257
+
+![Table1](resources/Table11.PNG)
+
 The client-server model unfortunately does not show improvement over the baseline local computation
 method. Future work to optimize the SEAL library as well as a client-server model may in the future
 make that model more feasible. However, at this time, it is not a viable alternate solution to the baseline
